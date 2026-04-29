@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Clicker App</title>
+
+<!-- ===== CSS ===== -->
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #111;
+    color: #fff;
+    text-align: center;
+    padding: 30px;
+  }
+  input, button {
+    padding: 10px;
+    margin: 5px;
+    font-size: 16px;
+  }
+  button {
+    cursor: pointer;
+  }
+  .box {
+    background: #1e1e1e;
+    padding: 20px;
+    border-radius: 10px;
+    max-width: 400px;
+    margin: auto;
+  }
+  .hidden {
+    display: none;
+  }
+</style>
+</head>
+
+<body>
+
+<div class="box">
+
+  <!-- LOGIN -->
+  <div id="loginBox">
+    <h2>Login / Register</h2>
+    <input id="email" type="email" placeholder="Email"><br>
+    <input id="password" type="password" placeholder="Password"><br>
+    <button onclick="login()">Login</button>
+    <button onclick="register()">Register</button>
+  </div>
+
+  <!-- CLICKER -->
+  <div id="clickBox" class="hidden">
+    <h2>Click the Button</h2>
+    <p>Clicks: <span id="count">0</span></p>
+    <button onclick="addClick()">CLICK</button><br><br>
+    <button onclick="showLeaderboard()">Leaderboard</button>
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <!-- LEADERBOARD -->
+  <div id="leaderboardBox" class="hidden">
+    <h2>Top 100</h2>
+    <ol id="board"></ol>
+    <button onclick="backToClicker()">Back</button>
+  </div>
+
+</div>
+
+<!-- ===== SUPABASE SDK ===== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- ===== JAVASCRIPT ===== -->
+<script>
+const SUPABASE_URL = "https://mdpbhijnaorgmayhbdiu.supabase.co";
+const SUPABASE_KEY =
+"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kcGJoaWpuYW9yZ21heWhiZGl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0OTE3OTIsImV4cCI6MjA5MzA2Nzc5Mn0.7JsfNqWn-1NGoPWiApjldBM5uIzuwRDdPP9zvdCoI8Q";
+
+const supabase = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+const loginBox = document.getElementById("loginBox");
+const clickBox = document.getElementById("clickBox");
+const leaderboardBox = document.getElementById("leaderboardBox");
+
+// ===== AUTH CHECK =====
+async function checkAuth() {
+  const { data } = await supabase.auth.getUser();
+  if (data.user) {
+    loginBox.classList.add("hidden");
+    clickBox.classList.remove("hidden");
+    loadClicks();
+  }
+}
+checkAuth();
+
+// ===== LOGIN =====
+async function login() {
+  await supabase.auth.signInWithPassword({
+    email: email.value,
+    password: password.value
+  });
+  checkAuth();
+}
+
+// ===== REGISTER =====
+async function register() {
+  await supabase.auth.signUp({
+    email: email.value,
+    password: password.value
+  });
+  alert("Check your email to confirm.");
+}
+
+// ===== LOGOUT =====
+async function logout() {
+  await supabase.auth.signOut();
+  location.reload();
+}
+
+// ===== ADD CLICK =====
+async function addClick() {
+  const { data } = await supabase.auth.getUser();
+
+  await supabase
+    .from("profiles")
+    .update({ clicks: supabase.increment(1) })
+    .eq("id", data.user.id);
+
+  loadClicks();
+}
+
+// ===== LOAD CLICKS =====
+async function loadClicks() {
+  const { data } = await supabase.auth.getUser();
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("clicks")
+    .eq("id", data.user.id)
+    .single();
+
+  document.getElementById("count").innerText = profile.clicks;
+}
+
+// ===== LEADERBOARD =====
+async function showLeaderboard() {
+  clickBox.classList.add("hidden");
+  leaderboardBox.classList.remove("hidden");
+
+  const { data } = await supabase
+    .from("profiles")
+    .select("email, clicks")
+    .order("clicks", { ascending: false })
+    .limit(100);
+
+  const board = document.getElementById("board");
+  board.innerHTML = "";
+
+  data.forEach(user => {
+    const li = document.createElement("li");
+    li.textContent = `${user.email} — ${user.clicks}`;
+    board.appendChild(li);
+  });
+}
+
+function backToClicker() {
+  leaderboardBox.classList.add("hidden");
+  clickBox.classList.remove("hidden");
+}
+</script>
+
+</body>
+</html>
